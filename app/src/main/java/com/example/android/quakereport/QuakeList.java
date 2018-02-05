@@ -5,25 +5,30 @@ package com.example.android.quakereport;
  */
 
 public class QuakeList {
+
     private double mag;
     private String local;
-    private String date;
+    private long timeInMilliseconds;
+    private String url;
 
-    public QuakeList( double mag, String local, String date ) {
+    public QuakeList( double mag, String local, long timeInMilliseconds, String url ) {
         this.mag = mag;
         this.local = local;
-        this.date = date;
+        this.timeInMilliseconds = timeInMilliseconds;
+        this.url = url;
     }
 
     public double getMag() {
         return mag;
     }
-
     public String getLocal() {
         return local;
     }
-
-    public String getDate() {
-        return date;
+    public long getTimeInMilliseconds() {
+        return timeInMilliseconds;
     }
+    public String getUrl(){
+        return url;
+    }
+
 }

@@ -15,10 +15,15 @@
  */
 package com.example.android.quakereport;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 
@@ -31,22 +36,30 @@ public class EarthquakeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.earthquake_activity);
 
-        // Create a fake list of earthquake locations.
-        ArrayList<QuakeList> earthquakes = new ArrayList<QuakeList>();
-        earthquakes.add(new QuakeList(7.2, "São Francisco", "Feb 2, 2016"));
-        earthquakes.add(new QuakeList(6.1, "Londres", "July 20, 2015"));
-        earthquakes.add(new QuakeList(3.9, "Tokyo", "Nov 10, 2014"));
-        earthquakes.add(new QuakeList(5.4, "Mexico", "Feb 2, 2016"));
-        earthquakes.add(new QuakeList(2.8, "Moscow", "Feb 2, 2016"));
-        earthquakes.add(new QuakeList(4.9, "Rio de Janeiro", "Feb 2, 2016"));
-        earthquakes.add(new QuakeList(1.6, "Paris", "Feb 2, 2016"));
+        ArrayList<QuakeList> earthquakes = QueryUtils.extractEarthquakes();
 
         // Create a new {@link ArrayAdapter} of earthquakes
-        QuakeListAdapter quakeListAdapter = new QuakeListAdapter(this, earthquakes);
+        final QuakeListAdapter quakeListAdapter = new QuakeListAdapter(this, earthquakes);
         // Find a reference to the {@link ListView} in the layout
         ListView earthquakeListView = (ListView) findViewById(R.id.list);
         // Set the adapter on the {@link ListView}
         // so the list can be populated in the user interface
         earthquakeListView.setAdapter(quakeListAdapter);
+
+        earthquakeListView.setOnItemClickListener(new AdapterView.OnItemClickListener( ) {
+            @Override
+            public void onItemClick( AdapterView <?> adapterView, View view, int i, long l ) {
+                QuakeList currentQuakeList = quakeListAdapter.getItem(i);
+                openWebPage(currentQuakeList.getUrl());
+            }
+        });
+    }
+
+    public void openWebPage(String url) {
+        Uri webpage = Uri.parse(url);
+        Intent intent = new Intent(Intent.ACTION_VIEW, webpage);
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            startActivity(intent);
+        }
     }
 }
