@@ -15,6 +15,7 @@ import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /**
  * Created by phartmann on 30/01/2018.
@@ -25,7 +26,7 @@ public class QuakeListAdapter extends ArrayAdapter<QuakeList> {
     Date dateObj;
     String splitPlace[];
 
-    public QuakeListAdapter( @NonNull Context context, @NonNull ArrayList<QuakeList> quakeList ) {
+    public QuakeListAdapter( @NonNull Context context, @NonNull List<QuakeList> quakeList ) {
         super(context, 0, quakeList);
     }
 
