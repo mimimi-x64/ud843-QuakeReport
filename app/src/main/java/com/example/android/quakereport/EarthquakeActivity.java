@@ -88,16 +88,8 @@ public class EarthquakeActivity extends AppCompatActivity {
                 Log.e(LOG_TAG, "Error on HttpResquest");
             }
             return QueryUtils.extractEarthquakes(jsonResponse);
-
         }
 
-        @Override
-        protected void onPostExecute( List <QuakeList> quakeLists ) {
-            if (quakeLists == null) {
-                return;
-            }
-            updateUi(quakeLists);
-        }
 
         private URL createUrl( String stringUrl){
             URL url;
@@ -154,6 +146,14 @@ public class EarthquakeActivity extends AppCompatActivity {
                 }
             }
             return output.toString();
+        }
+
+        @Override
+        protected void onPostExecute( List <QuakeList> quakeLists ) {
+            if (quakeLists == null) {
+                return;
+            }
+            updateUi(quakeLists);
         }
     }
 
