@@ -15,56 +15,91 @@
  */
 package com.example.android.quakereport;
 
+import android.app.LoaderManager;
+import android.content.Context;
 import android.content.Intent;
+import android.content.Loader;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.List;
 
-public class EarthquakeActivity extends AppCompatActivity {
+public class EarthquakeActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<List<QuakeList>> {
 
     public static final String LOG_TAG = EarthquakeActivity.class.getName();
+    private static final int QUAKE_LOADER_ID = 77;
+    private QuakeListAdapter mAdapter;
+    private ProgressBar loading;
+    private TextView noResults;
+    private TextView noInternet;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.earthquake_activity);
 
-        QuakeAsyncTask task = new QuakeAsyncTask();
-        task.execute();
-    }
+        ConnectivityManager cm =
+                (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE);
 
-    private void updateUi(List <QuakeList> quakeLists){
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        boolean isConnected = activeNetwork != null &&
+                activeNetwork.isConnectedOrConnecting();
 
-        // Create a new {@link ArrayAdapter} of earthquakes
-        final QuakeListAdapter quakeListAdapter = new QuakeListAdapter(this, quakeLists);
+
+        loading = (ProgressBar) findViewById(R.id.loading);
+        noResults = (TextView) findViewById(android.R.id.empty);
+        noResults.setVisibility(View.GONE);
+        noInternet = (TextView) findViewById(R.id.no_internet);
+        noInternet.setVisibility(View.GONE);
+
         // Find a reference to the {@link ListView} in the layout
         ListView earthquakeListView = (ListView) findViewById(R.id.list);
+
+        mAdapter = new QuakeListAdapter(this, new ArrayList <QuakeList>());
         // Set the adapter on the {@link ListView}
         // so the list can be populated in the user interface
-        earthquakeListView.setAdapter(quakeListAdapter);
+        earthquakeListView.setAdapter(mAdapter);
 
         earthquakeListView.setOnItemClickListener(new AdapterView.OnItemClickListener( ) {
             @Override
             public void onItemClick( AdapterView <?> adapterView, View view, int i, long l ) {
-                QuakeList currentQuakeList = quakeListAdapter.getItem(i);
+                QuakeList currentQuakeList = mAdapter.getItem(i);
                 openWebPage(currentQuakeList.getUrl());
             }
         });
+
+        // Obtém uma referência ao LoaderManager, a fim de interagir com loaders.
+        LoaderManager loaderManager = getLoaderManager();
+
+        // Inicializa o loader. Passa um ID constante int definido acima e passa nulo para
+        // o bundle. Passa esta activity para o parâmetro LoaderCallbacks (que é válido
+        // porque esta activity implementa a interface LoaderCallbacks).
+
+
+        if (mAdapter.isEmpty()){
+            noResults.setVisibility(View.VISIBLE);
+            earthquakeListView.setEmptyView(noResults);
+        }
+
+        if (isConnected){
+            loaderManager.initLoader(QUAKE_LOADER_ID, null, this);
+            Log.e(LOG_TAG, "After loader manager");
+        } else {
+            noResults.setVisibility(View.GONE);
+            loading.setVisibility(View.GONE);
+            noInternet.setText("Verifique sua internet");
+            noInternet.setVisibility(View.VISIBLE);
+        }
     }
 
     private void openWebPage(String url) {
@@ -75,109 +110,33 @@ public class EarthquakeActivity extends AppCompatActivity {
         }
     }
 
-    private class QuakeAsyncTask extends AsyncTask<String, Void, List<QuakeList>>{
+    @Override
+    public Loader<List <QuakeList>> onCreateLoader( int i, Bundle bundle ) {
+        // Criar um novo loader para a dada URL
+        Log.e(LOG_TAG, "onCreateLoader Executed");
+        return new QuakeLoader(this, QueryUtils.USGS_REQUEST_URL);
 
-        @Override
-        protected List <QuakeList> doInBackground( String... strings ) {
-            URL url = createUrl(QueryUtils.USGS_REQUEST_URL);
+    }
 
-            String jsonResponse = "";
-            try {
-                jsonResponse = makeHttpRequest(url);
-            } catch (IOException e){
-                Log.e(LOG_TAG, "Error on HttpResquest");
-            }
-            return QueryUtils.extractEarthquakes(jsonResponse);
-        }
+    @Override
+    public void onLoadFinished( Loader <List <QuakeList>> loader, List <QuakeList> quakeLists ) {
+        // Limpa o adapter de dados de earthquake anteriores
+        mAdapter.clear();
+        Log.e(LOG_TAG, "onLoadFinished executed");
 
-
-        private URL createUrl( String stringUrl){
-            URL url;
-            try {
-                url = new URL(stringUrl);
-            } catch (MalformedURLException exception){
-                Log.e(LOG_TAG, "Error with creating URL", exception);
-                return null;
-            }
-            return url;
-        }
-
-        private String makeHttpRequest(URL url) throws IOException{
-            String jsonResponse = "";
-            if (jsonResponse == null){
-                return jsonResponse;
-            }
-            HttpURLConnection urlConnection = null;
-            InputStream inputStream = null;
-            try {
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("GET");
-                urlConnection.setReadTimeout(1000 /* milliseconds */);
-                urlConnection.setConnectTimeout(15000 /* milliseconds */);
-                urlConnection.connect();
-                if (urlConnection.getResponseCode() == 200){
-                    inputStream = urlConnection.getInputStream();
-                    jsonResponse = readFromStream(inputStream);
-                } else {
-                    Log.e(LOG_TAG, "Error response code " + urlConnection.getResponseCode());
-                }
-            } catch (IOException e){
-                Log.e(LOG_TAG, "Problem with Internet Connection.");
-            } finally {
-                if (urlConnection != null){
-                    urlConnection.disconnect();
-                }
-                if (inputStream != null){
-                    inputStream.close();
-                }
-            }
-            return jsonResponse;
-        }
-
-        private String readFromStream(InputStream inputStream) throws IOException{
-            StringBuilder output = new StringBuilder();
-            if (inputStream != null){
-                InputStreamReader inputStreamReader = new InputStreamReader(inputStream, Charset.forName("UTF-8"));
-                BufferedReader reader = new BufferedReader(inputStreamReader);
-                String line = reader.readLine();
-                while (line != null) {
-                    output.append(line);
-                    line = reader.readLine();
-                }
-            }
-            return output.toString();
-        }
-
-        @Override
-        protected void onPostExecute( List <QuakeList> quakeLists ) {
-            if (quakeLists == null) {
-                return;
-            }
-            updateUi(quakeLists);
+        // Se há uma lista válida de {@link Earthquake}s, então os adiciona ao data set do adapter.
+        // Isto ativará a atualização da ListView.
+        if (quakeLists != null && !quakeLists.isEmpty()) {
+            mAdapter.addAll(quakeLists);
         }
     }
 
+    @Override
+    public void onLoaderReset( Loader <List <QuakeList>> loader ) {
+        loading.setVisibility(View.GONE);
+        noResults.setVisibility(View.VISIBLE);
+        noResults.setText("Sem Resultados");
+        Log.e(LOG_TAG, "onLoadReset executed");
+        mAdapter.clear();
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

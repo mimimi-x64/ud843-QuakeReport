@@ -8,12 +8,24 @@ package com.example.android.quakereport;
         import org.json.JSONArray;
         import org.json.JSONException;
         import org.json.JSONObject;
+
+        import java.io.BufferedReader;
+        import java.io.IOException;
+        import java.io.InputStream;
+        import java.io.InputStreamReader;
+        import java.net.HttpURLConnection;
+        import java.net.MalformedURLException;
+        import java.net.URL;
+        import java.nio.charset.Charset;
         import java.util.ArrayList;
+        import java.util.List;
 
 /**
  * Helper methods related to requesting and receiving earthquake data from USGS.
  */
 public final class QueryUtils {
+
+    public static final String LOG_TAG = QueryUtils.class.getName();
 
     /** Sample JSON response for a USGS query */
     public static final String USGS_REQUEST_URL =
@@ -25,6 +37,82 @@ public final class QueryUtils {
      * directly from the class name QueryUtils (and an object instance of QueryUtils is not needed).
      */
     private QueryUtils() {
+    }
+
+    public static List<QuakeList> fetchEarthquakeData( String requestUrl ) {
+        URL url = createUrl(requestUrl);
+
+        try {
+            Thread.sleep(1111);
+        } catch (InterruptedException e) {
+            e.printStackTrace( );
+        }
+
+        String jsonResponse = "";
+        try {
+            jsonResponse = makeHttpRequest(url);
+        } catch (IOException e){
+            Log.e(LOG_TAG, "Error on HttpResquest");
+        }
+        Log.e(LOG_TAG, "fetchEarthQuakeData executed");
+        return QueryUtils.extractEarthquakes(jsonResponse);
+    }
+
+    private static URL createUrl( String stringUrl ){
+        URL url;
+        try {
+            url = new URL(stringUrl);
+        } catch (MalformedURLException exception){
+            Log.e(LOG_TAG, "Error with creating URL", exception);
+            return null;
+        }
+        return url;
+    }
+
+    private static String makeHttpRequest( URL url ) throws IOException {
+        String jsonResponse = "";
+        if (jsonResponse == null){
+            return jsonResponse;
+        }
+        HttpURLConnection urlConnection = null;
+        InputStream inputStream = null;
+        try {
+            urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection.setRequestMethod("GET");
+            urlConnection.setReadTimeout(1000 /* milliseconds */);
+            urlConnection.setConnectTimeout(15000 /* milliseconds */);
+            urlConnection.connect();
+            if (urlConnection.getResponseCode() == 200){
+                inputStream = urlConnection.getInputStream();
+                jsonResponse = readFromStream(inputStream);
+            } else {
+                Log.e(LOG_TAG, "Error response code " + urlConnection.getResponseCode());
+            }
+        } catch (IOException e){
+            Log.e(LOG_TAG, "Problem with Internet Connection.");
+        } finally {
+            if (urlConnection != null){
+                urlConnection.disconnect();
+            }
+            if (inputStream != null){
+                inputStream.close();
+            }
+        }
+        return jsonResponse;
+    }
+
+    private static String readFromStream( InputStream inputStream ) throws IOException{
+        StringBuilder output = new StringBuilder();
+        if (inputStream != null){
+            InputStreamReader inputStreamReader = new InputStreamReader(inputStream, Charset.forName("UTF-8"));
+            BufferedReader reader = new BufferedReader(inputStreamReader);
+            String line = reader.readLine();
+            while (line != null) {
+                output.append(line);
+                line = reader.readLine();
+            }
+        }
+        return output.toString();
     }
 
     /**
@@ -57,19 +145,7 @@ public final class QueryUtils {
                 String url = propertiesJSON.getString("url");
                 double mag = propertiesJSON.getInt("mag");
                 long time = propertiesJSON.getInt("time");
-//                //Initialize date obj
-//                Date dateObj = new Date(time);
-//                //Mili to date
-//                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("DD MMM, yyyy");
-//                String dateToDisplay = simpleDateFormat.format(dateObj) ;
-//                //Mili to hour
-//                SimpleDateFormat simpleHourFormat = new SimpleDateFormat("h:mm a");
-//                String hourToDisplay = simpleDateFormat.format(simpleHourFormat);
 
-//                if (place.contains(" of ")) split = place.split("of");
-//                String concatOf = split[0].concat("of");
-
-                //Fill the list
                 earthquakes.add(new QuakeList(mag, place, time, url));
             }
 
